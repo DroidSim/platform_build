@@ -149,7 +149,9 @@ board_config_mk :=
 # 		TARGET_OS = { linux }
 # 		TARGET_ARCH = { arm | x86 | mips }
 
+ifneq ($(TARGET_OS),gnu_linux)
 TARGET_OS := linux
+endif
 # TARGET_ARCH should be set by BoardConfig.mk and will be checked later
 
 # the target build type defaults to release

@@ -1,11 +1,19 @@
 
 include $(BUILD_SYSTEM)/clang/x86.mk
 
+ifeq ($(TARGET_OS),gnu_linux)
+CLANG_CONFIG_x86_TARGET_TRIPLE := i686-linux-gnu
+# NOTE: There is no i686-linux-android prebuilt, so we must hardcode the
+# x86_64 target instead.
+CLANG_CONFIG_x86_TARGET_TOOLCHAIN_PREFIX := \
+  /usr/bin
+else
 CLANG_CONFIG_x86_TARGET_TRIPLE := i686-linux-android
 # NOTE: There is no i686-linux-android prebuilt, so we must hardcode the
 # x86_64 target instead.
 CLANG_CONFIG_x86_TARGET_TOOLCHAIN_PREFIX := \
   $($(clang_2nd_arch_prefix)TARGET_TOOLCHAIN_ROOT)/x86_64-linux-android/bin
+endif
 
 CLANG_CONFIG_x86_TARGET_EXTRA_ASFLAGS := \
   $(CLANG_CONFIG_EXTRA_ASFLAGS) \
