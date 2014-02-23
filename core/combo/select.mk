@@ -50,7 +50,11 @@ $(combo_var_prefix)HAVE_STRLCAT := 0
 $(combo_var_prefix)HAVE_KERNEL_MODULES := 0
 
 $(combo_var_prefix)GLOBAL_CFLAGS := -fno-exceptions -Wno-multichar
+ifeq ($(TARGET_OS),gnu_linux)
+$(combo_var_prefix)RELEASE_CFLAGS := -O0 -g -fno-strict-aliasing
+else
 $(combo_var_prefix)RELEASE_CFLAGS := -O2 -g -fno-strict-aliasing
+endif
 $(combo_var_prefix)GLOBAL_CPPFLAGS :=
 $(combo_var_prefix)GLOBAL_LDFLAGS :=
 $(combo_var_prefix)GLOBAL_ARFLAGS := crsPD
