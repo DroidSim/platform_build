@@ -29,7 +29,6 @@ ifeq ($(strip $(HOST_TOOLCHAIN_PREFIX)),)
 HOST_TOOLCHAIN_PREFIX := prebuilts/tools/gcc-sdk/
 endif
 endif
-endif
 # Don't do anything if the toolchain is not there
 ifneq (,$(strip $(wildcard $(HOST_TOOLCHAIN_PREFIX)gcc)))
 HOST_CC  := $(HOST_TOOLCHAIN_PREFIX)gcc
