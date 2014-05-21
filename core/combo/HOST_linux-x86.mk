@@ -17,7 +17,6 @@
 # Configuration for builds hosted on linux-x86.
 # Included by combo/select.mk
 
-<<<<<<< HEAD
 ifeq ($(strip $($(combo_2nd_arch_prefix)HOST_TOOLCHAIN_PREFIX)),)
 ifneq ($(TARGET_OS),gnu_linux)
 $(combo_2nd_arch_prefix)HOST_TOOLCHAIN_PREFIX := prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.11-4.6/bin/x86_64-linux-
