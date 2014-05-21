@@ -9,7 +9,9 @@
 include $(BUILD_SYSTEM)/base_rules.mk
 #######################################
 
-my_ndk_version_root :=
+my_ndk_sysroot :=
+my_ndk_sysroot_include :=
+my_ndk_sysroot_lib :=
 ifdef LOCAL_SDK_VERSION
   ifdef LOCAL_NDK_VERSION
     $(error $(LOCAL_PATH): LOCAL_NDK_VERSION is now retired.)
@@ -18,7 +20,13 @@ ifdef LOCAL_SDK_VERSION
     $(error $(LOCAL_PATH): LOCAL_SDK_VERSION cannot be used in host module)
   endif
   my_ndk_source_root := $(HISTORICAL_NDK_VERSIONS_ROOT)/current/sources
-  my_ndk_version_root := $(HISTORICAL_NDK_VERSIONS_ROOT)/current/platforms/android-$(LOCAL_SDK_VERSION)/arch-$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)
+  my_ndk_sysroot := $(HISTORICAL_NDK_VERSIONS_ROOT)/current/platforms/android-$(LOCAL_SDK_VERSION)/arch-$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)
+  my_ndk_sysroot_include := $(my_ndk_sysroot)/usr/include
+  ifeq (x86_64,$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH))
+    my_ndk_sysroot_lib := $(my_ndk_sysroot)/usr/lib64
+  else
+    my_ndk_sysroot_lib := $(my_ndk_sysroot)/usr/lib
+  endif
 
   # Set up the NDK stl variant. Starting from NDK-r5 the c++ stl resides in a separate location.
   # See ndk/docs/CPLUSPLUS-SUPPORT.html
@@ -105,22 +113,20 @@ my_cxx := $(LOCAL_CXX)
 my_c_includes := $(LOCAL_C_INCLUDES)
 my_generated_sources := $(LOCAL_GENERATED_SOURCES)
 
-ifndef LOCAL_IS_HOST_MODULE
-my_src_files += $(LOCAL_SRC_FILES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_SRC_FILES_$(my_32_64_bit_suffix))
-my_shared_libraries += $(LOCAL_SHARED_LIBRARIES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_SHARED_LIBRARIES_$(my_32_64_bit_suffix))
-my_cflags += $(LOCAL_CFLAGS_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_CFLAGS_$(my_32_64_bit_suffix))
-my_cppflags += $(LOCAL_CPPFLAGS_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_CPPFLAGS_$(my_32_64_bit_suffix))
-my_ldflags += $(LOCAL_LDFLAGS_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_LDFLAGS_$(my_32_64_bit_suffix))
-my_asflags += $(LOCAL_ASFLAGS_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_ASFLAGS_$(my_32_64_bit_suffix))
-my_c_includes += $(LOCAL_C_INCLUDES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_C_INCLUDES_$(my_32_64_bit_suffix))
-my_generated_sources += $(LOCAL_GENERATED_SOURCES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_GENERATED_SOURCES_$(my_32_64_bit_suffix))
+my_src_files += $(LOCAL_SRC_FILES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_SRC_FILES_$(my_32_64_bit_suffix))
+my_shared_libraries += $(LOCAL_SHARED_LIBRARIES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_SHARED_LIBRARIES_$(my_32_64_bit_suffix))
+my_cflags += $(LOCAL_CFLAGS_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_CFLAGS_$(my_32_64_bit_suffix))
+my_cppflags += $(LOCAL_CPPFLAGS_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_CPPFLAGS_$(my_32_64_bit_suffix))
+my_ldflags += $(LOCAL_LDFLAGS_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_LDFLAGS_$(my_32_64_bit_suffix))
+my_asflags += $(LOCAL_ASFLAGS_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_ASFLAGS_$(my_32_64_bit_suffix))
+my_c_includes += $(LOCAL_C_INCLUDES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_C_INCLUDES_$(my_32_64_bit_suffix))
+my_generated_sources += $(LOCAL_GENERATED_SOURCES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_GENERATED_SOURCES_$(my_32_64_bit_suffix))
 
 # arch-specific static libraries go first so that generic ones can depend on them
-my_static_libraries := $(LOCAL_STATIC_LIBRARIES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_STATIC_LIBRARIES_$(my_32_64_bit_suffix)) $(my_static_libraries)
-my_whole_static_libraries := $(LOCAL_WHOLE_STATIC_LIBRARIES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_WHOLE_STATIC_LIBRARIES_$(my_32_64_bit_suffix)) $(my_whole_static_libraries)
+my_static_libraries := $(LOCAL_STATIC_LIBRARIES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_STATIC_LIBRARIES_$(my_32_64_bit_suffix)) $(my_static_libraries)
+my_whole_static_libraries := $(LOCAL_WHOLE_STATIC_LIBRARIES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)) $(LOCAL_WHOLE_STATIC_LIBRARIES_$(my_32_64_bit_suffix)) $(my_whole_static_libraries)
 
-my_cflags := $(filter-out $($(LOCAL_2ND_ARCH_VAR_PREFIX)TARGET_GLOBAL_UNSUPPORTED_CFLAGS),$(my_cflags))
-endif
+my_cflags := $(filter-out $($(LOCAL_2ND_ARCH_VAR_PREFIX)$(my_prefix)GLOBAL_UNSUPPORTED_CFLAGS),$(my_cflags))
 
 # Add static HAL libraries
 ifdef LOCAL_HAL_STATIC_LIBRARIES
@@ -149,9 +155,6 @@ ifeq (,$(LOCAL_SDK_VERSION)$(LOCAL_IS_HOST_MODULE)$(WITHOUT_LIBCOMPILER_RT))
 endif
 
 my_compiler_dependencies :=
-ifeq ($(strip $(LOCAL_CLANG)),true)
-  my_compiler_dependencies := $(CLANG) $(CLANG_CXX)
-endif
 
 ####################################################
 ## Add FDO flags if FDO is turned on and supported
@@ -201,7 +204,7 @@ endif
 ifndef LOCAL_IS_HOST_MODULE
 ifdef LOCAL_SDK_VERSION
 my_target_project_includes :=
-my_target_c_includes := $(my_ndk_stl_include_path) $(my_ndk_version_root)/usr/include
+my_target_c_includes := $(my_ndk_stl_include_path) $(my_ndk_sysroot_include)
 my_target_global_cppflags := $(my_ndk_stl_cppflags)
 else
 my_target_project_includes := $($(LOCAL_2ND_ARCH_VAR_PREFIX)TARGET_PROJECT_INCLUDES)
@@ -229,15 +232,15 @@ $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_TARGET_GLOBAL_LDFLAGS := $(my_target_glob
 else # LOCAL_IS_HOST_MODULE
 
 ifeq ($(LOCAL_CLANG),true)
-my_host_global_cflags := $(CLANG_HOST_GLOBAL_CFLAGS)
-my_host_global_cppflags := $(CLANG_HOST_GLOBAL_CPPFLAGS)
-my_host_global_ldflags := $(CLANG_HOST_GLOBAL_LDFLAGS)
-my_host_c_includes := $(HOST_C_INCLUDES) $(CLANG_CONFIG_EXTRA_HOST_C_INCLUDES)
+my_host_global_cflags := $($(LOCAL_2ND_ARCH_VAR_PREFIX)CLANG_HOST_GLOBAL_CFLAGS)
+my_host_global_cppflags := $($(LOCAL_2ND_ARCH_VAR_PREFIX)CLANG_HOST_GLOBAL_CPPFLAGS)
+my_host_global_ldflags := $($(LOCAL_2ND_ARCH_VAR_PREFIX)CLANG_HOST_GLOBAL_LDFLAGS)
+my_host_c_includes := $($(LOCAL_2ND_ARCH_VAR_PREFIX)HOST_C_INCLUDES) $(CLANG_CONFIG_EXTRA_HOST_C_INCLUDES)
 else
-my_host_global_cflags := $(HOST_GLOBAL_CFLAGS)
-my_host_global_cppflags := $(HOST_GLOBAL_CPPFLAGS)
-my_host_global_ldflags := $(HOST_GLOBAL_LDFLAGS)
-my_host_c_includes := $(HOST_C_INCLUDES)
+my_host_global_cflags := $($(LOCAL_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_CFLAGS)
+my_host_global_cppflags := $($(LOCAL_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_CPPFLAGS)
+my_host_global_ldflags := $($(LOCAL_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_LDFLAGS)
+my_host_c_includes := $($(LOCAL_2ND_ARCH_VAR_PREFIX)HOST_C_INCLUDES)
 endif # LOCAL_CLANG
 
 $(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_HOST_C_INCLUDES := $(my_host_c_includes)
@@ -820,7 +823,7 @@ built_shared_libraries := \
 # Add the NDK libraries to the built module dependency
 my_system_shared_libraries_fullpath := \
     $(my_ndk_stl_shared_lib_fullpath) \
-    $(addprefix $(my_ndk_version_root)/usr/lib/, \
+    $(addprefix $(my_ndk_sysroot_lib)/, \
         $(addsuffix $(so_suffix), $(my_system_shared_libraries)))
 
 built_shared_libraries += $(my_system_shared_libraries_fullpath)

@@ -110,7 +110,6 @@ ifneq ($(VERSION_CHECK_SEQUENCE_NUMBER),$(VERSIONS_CHECKED))
 $(info Checking build tools versions...)
 
 ifneq ($(HOST_OS),windows)
-ifneq ($(HOST_OS)-$(HOST_ARCH),darwin-ppc)
 # check for a case sensitive file system
 ifneq (a,$(shell mkdir -p $(OUT_DIR) ; \
                 echo a > $(OUT_DIR)/casecheck.txt; \
@@ -121,7 +120,6 @@ $(warning You are building on a case-insensitive filesystem.)
 $(warning Please move your source tree to a case-sensitive filesystem.)
 $(warning ************************************************************)
 $(error Case-insensitive filesystems not supported)
-endif
 endif
 endif
 
@@ -228,22 +226,8 @@ endif
 
 
 ifndef BUILD_EMULATOR
-ifeq (darwin,$(HOST_OS))
-GCC_REALPATH = $(realpath $(shell which $(HOST_CC)))
-ifneq ($(findstring llvm-gcc,$(GCC_REALPATH)),)
-  # Using LLVM GCC results in a non functional emulator due to it
-  # not honouring global register variables
-  $(warning ****************************************)
-  $(warning * gcc is linked to llvm-gcc which will *)
-  $(warning * not create a useable emulator.       *)
-  $(warning ****************************************)
+  # Emulator binaries are now provided under prebuilts/android-emulator/
   BUILD_EMULATOR := false
-else
-  BUILD_EMULATOR := true
-endif
-else   # HOST_OS is not darwin
-  BUILD_EMULATOR := true
-endif  # HOST_OS is darwin
 endif
 
 $(shell echo 'VERSIONS_CHECKED := $(VERSION_CHECK_SEQUENCE_NUMBER)' \
@@ -393,6 +377,10 @@ ifneq ($(filter ro.setupwizard.mode=ENABLED, $(call collapse-pairs, $(ADDITIONAL
           $(call collapse-pairs, $(ADDITIONAL_BUILD_PROPERTIES))) \
           ro.setupwizard.mode=OPTIONAL
 endif
+# Don't even verify the image on eng builds to speed startup
+ADDITIONAL_BUILD_PROPERTIES += dalvik.vm.image-dex2oat-flags=--compiler-filter=verify-none
+# Don't compile apps on eng builds to speed startup
+ADDITIONAL_BUILD_PROPERTIES += dalvik.vm.dex2oat-flags=--compiler-filter=interpret-only
 endif
 
 ## sdk ##
@@ -460,12 +448,6 @@ $(INTERNAL_MODIFIER_TARGETS): $(DEFAULT_GOAL)
 endif
 
 # Bring in all modules that need to be built.
-ifeq ($(HOST_OS)-$(HOST_ARCH),darwin-ppc)
-SDK_ONLY := true
-$(info Building the SDK under darwin-ppc is actually obsolete and unsupported.)
-$(error stop)
-endif
-
 ifeq ($(HOST_OS),windows)
 SDK_ONLY := true
 endif
@@ -1000,7 +982,7 @@ $(call dist-for-goals,sdk win_sdk, \
 # umbrella targets to assit engineers in verifying builds
 .PHONY: java native target host java-host java-target native-host native-target \
         java-host-tests java-target-tests native-host-tests native-target-tests \
-        java-tests native-tests host-tests target-tests
+        java-tests native-tests host-tests target-tests tests
 # some synonyms
 .PHONY: host-java target-java host-native target-native \
         target-java-tests target-native-tests
@@ -1010,6 +992,7 @@ host-native : native-host
 target-native : native-target
 target-java-tests : java-target-tests
 target-native-tests : native-target-tests
+tests : host-tests target-tests
 
 
 .PHONY: lintall

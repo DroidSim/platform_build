@@ -299,50 +299,7 @@ $(LOCAL_BUILT_MODULE): PRIVATE_DEX_FILE := $(built_dex)
 $(LOCAL_BUILT_MODULE): $(built_dex)
 endif # full_classes_jar
 
-
-# Get the list of jni libraries to be included in the apk file.
-
-so_suffix := $($(my_prefix)SHLIB_SUFFIX)
-
-jni_shared_libraries := \
-    $(addprefix $($(LOCAL_2ND_ARCH_VAR_PREFIX)$(my_prefix)OUT_INTERMEDIATE_LIBRARIES)/, \
-      $(addsuffix $(so_suffix), \
-        $(LOCAL_JNI_SHARED_LIBRARIES)))
-
-# Include RS dynamically-generated libraries as well
-# Keep this ifneq, as the += otherwise adds spaces that need to be stripped.
-ifneq ($(rs_compatibility_jni_libs),)
-jni_shared_libraries += $(rs_compatibility_jni_libs)
-endif
-
-# App explicitly requires the prebuilt NDK libstlport_shared.so.
-# libstlport_shared.so should never go to the system image.
-# Instead it should be packaged into the apk.
-ifneq ($(filter $(LOCAL_NDK_STL_VARIANT), stlport_shared c++_shared),)
-ifndef LOCAL_SDK_VERSION
-$(error LOCAL_SDK_VERSION has to be defined together with LOCAL_NDK_STL_VARIANT, \
-    LOCAL_PACKAGE_NAME=$(LOCAL_PACKAGE_NAME))
-endif
-endif
-ifeq (stlport_shared,$(LOCAL_NDK_STL_VARIANT))
-jni_shared_libraries += \
-    $(HISTORICAL_NDK_VERSIONS_ROOT)/current/sources/cxx-stl/stlport/libs/$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)CPU_ABI)/libstlport_shared.so
-else
-ifeq (c++_shared,$(LOCAL_NDK_STL_VARIANT))
-jni_shared_libraries += \
-    $(HISTORICAL_NDK_VERSIONS_ROOT)/current/sources/cxx-stl/llvm-libc++/libs/$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)CPU_ABI)/libc++_shared.so
-endif
-endif
-
-# Set the abi directory used by the local JNI shared libraries.
-# (Doesn't change how the local shared libraries are compiled, just
-# sets where they are stored in the apk.)
-
-ifeq ($(LOCAL_JNI_SHARED_LIBRARIES_ABI),)
-    jni_shared_libraries_abi := $(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)CPU_ABI)
-else
-    jni_shared_libraries_abi := $(LOCAL_JNI_SHARED_LIBRARIES_ABI)
-endif
+include $(BUILD_SYSTEM)/install_jni_libs.mk
 
 # Pick a key to sign the package with.  If this package hasn't specified
 # an explicit certificate, use the default.
@@ -380,13 +337,7 @@ $(LOCAL_BUILT_MODULE): PRIVATE_ADDITIONAL_CERTIFICATES := $(foreach c,\
 # Define the rule to build the actual package.
 $(LOCAL_BUILT_MODULE): $(AAPT) | $(ZIPALIGN)
 ifdef LOCAL_DEX_PREOPT
-$(LOCAL_BUILT_MODULE): PRIVATE_DEX_LOCATION := $(patsubst $(PRODUCT_OUT)%,%,$(LOCAL_INSTALLED_MODULE))
 $(LOCAL_BUILT_MODULE): PRIVATE_BUILT_ODEX := $(built_odex)
-$(LOCAL_BUILT_MODULE): PRIVATE_DEX_PREOPT_IMAGE := $(LOCAL_DEX_PREOPT_IMAGE)
-# Make sure the boot jars get dexpreopt-ed first
-$(LOCAL_BUILT_MODULE) : $(DEXPREOPT_ONE_FILE_DEPENDENCY_BUILT_BOOT_PREOPT)
-$(LOCAL_BUILT_MODULE) : $(DEXPREOPT_ONE_FILE_DEPENDENCY_TOOLS)
-$(LOCAL_BUILT_MODULE) : $(LOCAL_DEX_PREOPT_IMAGE)
 
 # built_odex is byproduct of LOCAL_BUILT_MODULE without its own build recipe.
 $(built_odex) : $(LOCAL_BUILT_MODULE)
@@ -420,7 +371,7 @@ ifneq ($(extra_jar_args),)
 endif
 	$(sign-package)
 ifdef LOCAL_DEX_PREOPT
-	$(call dexpreopt-one-file,$(PRIVATE_DEX_PREOPT_IMAGE),$@,$(PRIVATE_DEX_LOCATION),$(PRIVATE_BUILT_ODEX))
+	$(call dexpreopt-one-file,$@,$(PRIVATE_BUILT_ODEX))
 ifneq (nostripping,$(LOCAL_DEX_PREOPT))
 	$(call dexpreopt-remove-classes.dex,$@)
 endif

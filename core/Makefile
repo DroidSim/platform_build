@@ -13,8 +13,6 @@ else
   FILE_NAME_TAG := $(BUILD_NUMBER)
 endif
 
-is_tests_build := $(filter tests,$(MAKECMDGOALS))
-
 # -----------------------------------------------------------------
 # Define rules to copy PRODUCT_COPY_FILES defined by the product.
 # PRODUCT_COPY_FILES contains words like <source file>:<dest file>[:<owner>].
@@ -797,14 +795,6 @@ INTERNAL_SYSTEMIMAGE_FILES := $(filter $(TARGET_OUT)/%, \
     $(PDK_FUSION_SYSIMG_FILES) \
     $(RECOVERY_RESOURCE_ZIP))
 
-ifdef is_tests_build
-# We don't want to install tests modules to the system partition
-# when building "tests", because now "tests" may be built in a user, userdebug
-# or eng build variant and we don't want to pollute the system partition.
-# INTERNAL_SYSTEMIMAGE_FILES += $(filter $(TARGET_OUT)/%, \
-#    $(tests_MODULES))
-endif
-
 FULL_SYSTEMIMAGE_DEPS := $(INTERNAL_SYSTEMIMAGE_FILES) $(INTERNAL_USERIMAGES_DEPS)
 # -----------------------------------------------------------------
 # installed file list
@@ -980,12 +970,6 @@ boottarball-nodeps btnod: $(FS_GET_STATS) \
 # data partition image
 INTERNAL_USERDATAIMAGE_FILES := \
     $(filter $(TARGET_OUT_DATA)/%,$(ALL_DEFAULT_INSTALLED_MODULES))
-
-# If we build "tests" at the same time, make sure $(tests_MODULES) get covered.
-ifdef is_tests_build
-INTERNAL_USERDATAIMAGE_FILES += \
-    $(filter $(TARGET_OUT_DATA)/%,$(tests_MODULES))
-endif
 
 # Don't build userdata.img if it's extfs but no partition size
 skip_userdata.img :=
@@ -1362,45 +1346,6 @@ endif    # TARGET_NO_KERNEL != true
 endif    # TARGET_DEVICE != generic*
 endif    # TARGET_PRODUCT != sdk
 
-ifdef is_tests_build
-# -----------------------------------------------------------------
-# A zip of the tests that are built when running "make tests".
-# This is very similar to BUILT_TARGET_FILES_PACKAGE, but we
-# only grab DATA, and it's called "*-tests-*.zip".
-#
-name := $(TARGET_PRODUCT)
-ifeq ($(TARGET_BUILD_TYPE),debug)
-  name := $(name)_debug
-endif
-name := $(name)-tests-$(FILE_NAME_TAG)
-
-intermediates := $(call intermediates-dir-for,PACKAGING,tests_zip)
-BUILT_TESTS_ZIP_PACKAGE := $(intermediates)/$(name).zip
-$(BUILT_TESTS_ZIP_PACKAGE): intermediates := $(intermediates)
-$(BUILT_TESTS_ZIP_PACKAGE): zip_root := $(intermediates)/$(name)
-
-# Depending on the image dependency files, instead of the image files itself,
-# guarantees that the underlying directories are up-to-date,
-# but don't really build the image.
-$(BUILT_TESTS_ZIP_PACKAGE): \
-    $(INTERNAL_USERDATAIMAGE_FILES) \
-    | $(ACP)
-	@echo "Package test files: $@"
-	$(hide) rm -rf $@ $(zip_root)
-	$(hide) mkdir -p $(dir $@) $(zip_root)
-	@# Contents of the data image
-	$(hide) $(call package_files-copy-root, \
-		$(TARGET_OUT_DATA),$(zip_root)/DATA)
-	$(hide) (cd $(zip_root) && zip -qry ../$(notdir $@) .)
-
-.PHONY: tests
-tests: $(BUILT_TESTS_ZIP_PACKAGE)
-
-ifneq (,$(filter tests, $(MAKECMDGOALS)))
-  $(call dist-for-goals, tests, $(BUILT_TESTS_ZIP_PACKAGE))
-endif
-endif # is_tests_build
-
 # -----------------------------------------------------------------
 # A zip of the symbols directory.  Keep the full paths to make it
 # more obvious where these files came from.
@@ -1546,27 +1491,11 @@ endif
 
 atree_dir := development/build
 
-# sdk/build/tools.atree contains the generic rules, while
-#
-# sdk/build/tools.$(TARGET_ARCH).atree contains target-specific rules
-# the latter is optional.
-#
-sdk_tools_atree_files := sdk/build/tools.atree
-ifneq (,$(strip $(wildcard sdk/build/tools.$(TARGET_ARCH).atree)))
-  sdk_tools_atree_files += sdk/build/tools.$(TARGET_ARCH).atree
-endif
-ifneq (,$(strip $(wildcard sdk/build/tools.$(HOST_OS).atree)))
-  sdk_tools_atree_files += sdk/build/tools.$(HOST_OS).atree
-endif
-ifneq (,$(strip $(wildcard sdk/build/tools.$(HOST_OS)-$(HOST_ARCH).atree)))
-  sdk_tools_atree_files += sdk/build/tools.$(HOST_OS)-$(HOST_ARCH).atree
-endif
 
 sdk_atree_files := \
 	$(atree_dir)/sdk.exclude.atree \
 	$(atree_dir)/sdk.atree \
-	$(atree_dir)/sdk-$(HOST_OS)-$(HOST_ARCH).atree \
-	$(sdk_tools_atree_files)
+	$(atree_dir)/sdk-$(HOST_OS)-$(HOST_ARCH).atree
 
 # development/build/sdk-android-<abi>.atree is used to differentiate
 # between architecture models (e.g. ARMv5TE versus ARMv7) when copying
@@ -1588,7 +1517,6 @@ deps := \
 	$(INSTALLED_BUILD_PROP_TARGET) \
 	$(ATREE_FILES) \
 	$(atree_dir)/sdk.atree \
-	$(sdk_tools_atree_files) \
 	$(HOST_OUT_EXECUTABLES)/atree \
 	$(HOST_OUT_EXECUTABLES)/line_endings
 
@@ -1631,7 +1559,6 @@ $(INTERNAL_SDK_TARGET): $(deps)
 			-o $(PRIVATE_DIR) && \
 		cp -f $(target_notice_file_txt) \
 				$(PRIVATE_DIR)/system-images/android-$(PLATFORM_VERSION)/$(TARGET_CPU_ABI)/NOTICE.txt && \
-		cp -f $(tools_notice_file_txt) $(PRIVATE_DIR)/tools/NOTICE.txt && \
 		cp -f $(tools_notice_file_txt) $(PRIVATE_DIR)/platform-tools/NOTICE.txt && \
 		HOST_OUT_EXECUTABLES=$(HOST_OUT_EXECUTABLES) HOST_OS=$(HOST_OS) \
 			development/build/tools/sdk_clean.sh $(PRIVATE_DIR) && \

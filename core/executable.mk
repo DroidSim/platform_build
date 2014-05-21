@@ -6,6 +6,7 @@
 # LOCAL_MODULE_PATH_32 and LOCAL_MODULE_PATH_64 or LOCAL_MODULE_STEM_32 and
 # LOCAL_MODULE_STEM_64
 
+my_prefix := TARGET_
 include $(BUILD_SYSTEM)/multilib.mk
 
 ifeq ($(my_module_multilib),both)
@@ -19,9 +20,9 @@ else #!LOCAL_MULTILIB == both
 LOCAL_NO_2ND_ARCH_MODULE_SUFFIX := true
 endif
 
-# if TARGET_PREFER_32_BIT is set, try to build 32-bit first
+# if TARGET_PREFER_32_BIT_EXECUTABLES is set, try to build 32-bit first
 ifdef TARGET_2ND_ARCH
-ifeq ($(TARGET_PREFER_32_BIT),true)
+ifeq ($(TARGET_PREFER_32_BIT_EXECUTABLES),true)
 LOCAL_2ND_ARCH_VAR_PREFIX := $(TARGET_2ND_ARCH_VAR_PREFIX)
 else
 LOCAL_2ND_ARCH_VAR_PREFIX :=
@@ -45,7 +46,7 @@ ifndef my_skip_non_preferred_arch
 ifdef TARGET_2ND_ARCH
 
 # check if the non-preferred arch is the primary or secondary
-ifeq ($(TARGET_PREFER_32_BIT),true)
+ifeq ($(TARGET_PREFER_32_BIT_EXECUTABLES),true)
 LOCAL_2ND_ARCH_VAR_PREFIX :=
 else
 LOCAL_2ND_ARCH_VAR_PREFIX := $(TARGET_2ND_ARCH_VAR_PREFIX)

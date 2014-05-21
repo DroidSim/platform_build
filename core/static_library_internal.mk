@@ -28,7 +28,6 @@ $(all_objects) : PRIVATE_TARGET_GLOBAL_CFLAGS :=
 $(all_objects) : PRIVATE_TARGET_GLOBAL_CPPFLAGS :=
 endif
 
-$(LOCAL_BUILT_MODULE): PRIVATE_2ND_ARCH_VAR_PREFIX := $(LOCAL_2ND_ARCH_VAR_PREFIX)
 $(LOCAL_BUILT_MODULE) : $(built_whole_libraries)
 $(LOCAL_BUILT_MODULE) : $(all_objects)
 	$(transform-o-to-static-lib)

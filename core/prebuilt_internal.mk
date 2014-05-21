@@ -19,21 +19,22 @@ endif
 # Not much sense to check build prebuilts
 LOCAL_DONT_CHECK_MODULE := true
 
+my_32_64_bit_suffix := $(if $($(LOCAL_2ND_ARCH_VAR_PREFIX)$(my_prefix)IS_64_BIT),64,32)
+
 ifdef LOCAL_PREBUILT_MODULE_FILE
   my_prebuilt_src_file := $(LOCAL_PREBUILT_MODULE_FILE)
 else
-  ifdef LOCAL_SRC_FILES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)
-    my_prebuilt_src_file := $(LOCAL_PATH)/$(LOCAL_SRC_FILES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH))
+  ifdef LOCAL_SRC_FILES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)
+    my_prebuilt_src_file := $(LOCAL_PATH)/$(LOCAL_SRC_FILES_$($(my_prefix)$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH))
   else
-    my_prebuilt_src_file := $(LOCAL_PATH)/$(LOCAL_SRC_FILES)
+    ifdef LOCAL_SRC_FILES_$(my_32_64_bit_suffix)
+      my_prebuilt_src_file := $(LOCAL_PATH)/$(LOCAL_SRC_FILES_$(my_32_64_bit_suffix))
+    else
+      my_prebuilt_src_file := $(LOCAL_PATH)/$(LOCAL_SRC_FILES)
+    endif
   endif
 endif
 
-ifdef LOCAL_IS_HOST_MODULE
-  my_prefix := HOST_
-else
-  my_prefix := TARGET_
-endif
 ifeq (SHARED_LIBRARIES,$(LOCAL_MODULE_CLASS))
   # Put the built targets of all shared libraries in a common directory
   # to simplify the link line.
@@ -107,6 +108,9 @@ endif  # LOCAL_STRIP_MODULE not true
 
 PACKAGES.$(LOCAL_MODULE).OVERRIDES := $(strip $(LOCAL_OVERRIDES_PACKAGES))
 
+rs_compatibility_jni_libs :=
+include $(BUILD_SYSTEM)/install_jni_libs.mk
+
 ifeq ($(LOCAL_CERTIFICATE),EXTERNAL)
   # The magic string "EXTERNAL" means this package will be signed with
   # the default dev key throughout the build process, but we expect
@@ -159,24 +163,21 @@ LOCAL_DEX_PREOPT := false
 include $(BUILD_SYSTEM)/dex_preopt_odex_install.mk
 #######################################
 ifdef LOCAL_DEX_PREOPT
-$(built_module): PRIVATE_DEX_PREOPT_IMAGE := $(LOCAL_DEX_PREOPT_IMAGE)
-$(built_module): PRIVATE_DEX_LOCATION := $(patsubst $(PRODUCT_OUT)%,%,$(LOCAL_INSTALLED_MODULE))
 $(built_module): PRIVATE_BUILT_ODEX := $(built_odex)
-# Make sure the boot jars get dexpreopt-ed first
-$(built_module) : $(DEXPREOPT_ONE_FILE_DEPENDENCY_BUILT_BOOT_PREOPT)
-$(built_module) : $(DEXPREOPT_ONE_FILE_DEPENDENCY_TOOLS)
-(built_module) : $(LOCAL_DEX_PREOPT_IMAGE)
 # built_odex is byproduct of LOCAL_BUILT_MODULE without its own build recipe.
 $(built_odex) : $(LOCAL_BUILT_MODULE)
 endif # LOCAL_DEX_PREOPT
 # Sign and align non-presigned .apks.
 $(built_module) : $(my_prebuilt_src_file) | $(ACP) $(ZIPALIGN) $(SIGNAPK_JAR)
 	$(transform-prebuilt-to-target)
+ifdef my_extracted_jni_libs
+	$(hide) zip -d $@ 'lib/*.so'  # strip embedded JNI libraries.
+endif
 ifneq ($(LOCAL_CERTIFICATE),PRESIGNED)
 	$(sign-package)
 endif
 ifdef LOCAL_DEX_PREOPT
-	$(call dexpreopt-one-file,$(PRIVATE_DEX_PREOPT_IMAGE),$@,$(PRIVATE_DEX_LOCATION),$(PRIVATE_BUILT_ODEX))
+	$(call dexpreopt-one-file,$@,$(PRIVATE_BUILT_ODEX))
 endif
 	$(align-package)
 

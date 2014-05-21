@@ -87,7 +87,7 @@ android_config_h := $(call select-android-config-h,linux-mips64)
 
 TARGET_GLOBAL_CFLAGS += \
 			$(TARGET_mips_CFLAGS) \
-			-Ulinux -U__unix -U__unix__ -Umips \
+			-U__unix -U__unix__ -Umips \
 			-fpic -fPIE\
 			-ffunction-sections \
 			-fdata-sections \
@@ -95,6 +95,8 @@ TARGET_GLOBAL_CFLAGS += \
 			-Wa,--noexecstack \
 			-Werror=format-security \
 			-D_FORTIFY_SOURCE=2 \
+			-no-canonical-prefixes \
+			-fno-canonical-system-headers \
 			$(arch_variant_cflags) \
 			-include $(android_config_h) \
 			-I $(dir $(android_config_h))
@@ -239,7 +241,8 @@ $(hide) $(PRIVATE_CXX) \
 	$(PRIVATE_TARGET_GLOBAL_LDFLAGS) \
 	$(PRIVATE_LDFLAGS) \
 	$(PRIVATE_TARGET_LIBGCC) \
-	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_SO_O))
+	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_SO_O)) \
+	$(PRIVATE_LDLIBS)
 endef
 
 define transform-o-to-executable-inner
@@ -264,7 +267,8 @@ $(hide) $(PRIVATE_CXX) -nostdlib -Bdynamic -fPIE -pie \
 	$(PRIVATE_TARGET_GLOBAL_LDFLAGS) \
 	$(PRIVATE_LDFLAGS) \
 	$(PRIVATE_TARGET_LIBGCC) \
-	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_O))
+	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_O)) \
+	$(PRIVATE_LDLIBS)
 endef
 
 define transform-o-to-static-executable-inner

@@ -217,6 +217,13 @@ combo_target := HOST_
 combo_2nd_arch_prefix :=
 include $(BUILD_SYSTEM)/combo/select.mk
 
+# Load the 2nd host arch if it's needed.
+ifdef HOST_2ND_ARCH
+combo_target := HOST_
+combo_2nd_arch_prefix := $(HOST_2ND_ARCH_VAR_PREFIX)
+include $(BUILD_SYSTEM)/combo/select.mk
+endif
+
 # on windows, the tools have .exe at the end, and we depend on the
 # host config stuff being done first
 
@@ -231,12 +238,13 @@ combo_2nd_arch_prefix := $(TARGET_2ND_ARCH_VAR_PREFIX)
 include $(BUILD_SYSTEM)/combo/select.mk
 endif
 
-# "ro.product.cpu.abilist" is a comma separated list of ABIs (in order
-# of preference) that the target supports. If a TARGET_CPU_ABI_LIST
-# is specified by the board configuration, we use that. If not, we
-# build a list out of the TARGET_CPU_ABIs specified by the config.
-ifeq (,$(TARGET_CPU_ABI_LIST))
-  TARGET_CPU_ABI_LIST := $(TARGET_CPU_ABI) $(TARGET_CPU_ABI2) $(TARGET_2ND_CPU_ABI) $(TARGET_2ND_CPU_ABI2)
+ifdef TARGET_PREFER_32_BIT
+TARGET_PREFER_32_BIT_APPS := true
+TARGET_PREFER_32_BIT_EXECUTABLES := true
+endif
+
+ifeq (,$(TARGET_SUPPORTS_32_BIT_APPS)$(TARGET_SUPPORTS_64_BIT_APPS))
+  TARGET_SUPPORTS_32_BIT_APPS := true
 endif
 
 # "ro.product.cpu.abilist32" and "ro.product.cpu.abilist64" are
@@ -249,7 +257,7 @@ endif
 # is always 32 bits. If this isn't the case, these variables should
 # be overriden in the boarc configuration.
 ifeq (,$(TARGET_CPU_ABI_LIST_64_BIT))
-  ifeq (true,$(TARGET_IS_64_BIT))
+  ifeq (true|true,$(TARGET_IS_64_BIT)|$(TARGET_SUPPORTS_64_BIT_APPS))
     TARGET_CPU_ABI_LIST_64_BIT := $(TARGET_CPU_ABI) $(TARGET_CPU_ABI2)
   endif
 endif
@@ -258,9 +266,23 @@ ifeq (,$(TARGET_CPU_ABI_LIST_32_BIT))
   ifneq (true,$(TARGET_IS_64_BIT))
     TARGET_CPU_ABI_LIST_32_BIT := $(TARGET_CPU_ABI) $(TARGET_CPU_ABI2)
   else
-    # For a 64 bit target, assume that the 2ND_CPU_ABI
-    # is a 32 bit ABI.
-    TARGET_CPU_ABI_LIST_32_BIT := $(TARGET_2ND_CPU_ABI) $(TARGET_2ND_CPU_ABI2)
+    ifeq (true,$(TARGET_SUPPORTS_32_BIT_APPS))
+      # For a 64 bit target, assume that the 2ND_CPU_ABI
+      # is a 32 bit ABI.
+      TARGET_CPU_ABI_LIST_32_BIT := $(TARGET_2ND_CPU_ABI) $(TARGET_2ND_CPU_ABI2)
+    endif
+  endif
+endif
+
+# "ro.product.cpu.abilist" is a comma separated list of ABIs (in order
+# of preference) that the target supports. If a TARGET_CPU_ABI_LIST
+# is specified by the board configuration, we use that. If not, we
+# build a list out of the TARGET_CPU_ABIs specified by the config.
+ifeq (,$(TARGET_CPU_ABI_LIST))
+  ifeq ($(TARGET_IS_64_BIT)|$(TARGET_PREFER_32_BIT_APPS),true|true)
+    TARGET_CPU_ABI_LIST := $(TARGET_CPU_ABI_LIST_32_BIT) $(TARGET_CPU_ABI_LIST_64_BIT)
+  else
+    TARGET_CPU_ABI_LIST := $(TARGET_CPU_ABI_LIST_64_BIT) $(TARGET_CPU_ABI_LIST_32_BIT)
   endif
 endif
 
@@ -336,13 +358,13 @@ endif
 # ---------------------------------------------------------------
 # Generic tools.
 
-LEX := flex
+LEX := prebuilts/misc/$(BUILD_OS)-$(HOST_PREBUILT_ARCH)/flex/flex-2.5.39
 # The default PKGDATADIR built in the prebuilt bison is a relative path
 # external/bison/data.
 # To run bison from elsewhere you need to set up enviromental variable
 # BISON_PKGDATADIR.
 BISON_PKGDATADIR := $(PWD)/external/bison/data
-BISON := prebuilts/misc/$(BUILD_OS)-$(BUILD_ARCH)/bison/bison
+BISON := prebuilts/misc/$(BUILD_OS)-$(HOST_PREBUILT_ARCH)/bison/bison
 YACC := $(BISON) -d
 
 DOXYGEN:= doxygen
@@ -393,8 +415,6 @@ COLUMN:= cat
 else
 COLUMN:= column
 endif
-
-OLD_FLEX := prebuilts/misc/$(HOST_PREBUILT_TAG)/flex/flex-2.5.4a$(HOST_EXECUTABLE_SUFFIX)
 
 ifeq ($(HOST_OS),darwin)
 ifeq ($(LEGACY_USE_JAVA6),)
@@ -488,14 +508,39 @@ $(TARGET_2ND_ARCH_VAR_PREFIX)TARGET_GLOBAL_CFLAGS += $($(TARGET_2ND_ARCH_VAR_PRE
 $(TARGET_2ND_ARCH_VAR_PREFIX)TARGET_GLOBAL_CPPFLAGS += $($(TARGET_2ND_ARCH_VAR_PREFIX)TARGET_RELEASE_CPPFLAGS)
 endif
 
+ifdef HOST_2ND_ARCH
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_CFLAGS += $(COMMON_GLOBAL_CFLAGS)
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_RELEASE_CFLAGS += $(COMMON_RELEASE_CFLAGS)
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_CPPFLAGS += $(COMMON_GLOBAL_CPPFLAGS)
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_RELEASE_CPPFLAGS += $(COMMON_RELEASE_CPPFLAGS)
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_LD_DIRS += -L$($(HOST_2ND_ARCH_VAR_PREFIX)HOST_OUT_INTERMEDIATE_LIBRARIES)
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_PROJECT_INCLUDES := $(HOST_PROJECT_INCLUDES)
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_CFLAGS += $($(HOST_2ND_ARCH_VAR_PREFIX)HOST_RELEASE_CFLAGS)
+$(HOST_2ND_ARCH_VAR_PREFIX)HOST_GLOBAL_CPPFLAGS += $($(HOST_2ND_ARCH_VAR_PREFIX)HOST_RELEASE_CPPFLAGS)
+endif
+
 # allow overriding default Java libraries on a per-target basis
 ifeq ($(TARGET_DEFAULT_JAVA_LIBRARIES),)
   TARGET_DEFAULT_JAVA_LIBRARIES := core core-junit ext framework framework2
 endif
 
+TARGET_CPU_SMP ?= true
+
+# Flags for DEX2OAT
+DEX2OAT_TARGET_ARCH := $(TARGET_ARCH)
+DEX2OAT_TARGET_CPU_VARIANT := $(TARGET_CPU_VARIANT)
 DEX2OAT_TARGET_INSTRUCTION_SET_FEATURES := default
-ifneq (,$(filter $(TARGET_CPU_VARIANT),cortex-a7 cortex-a15 krait))
-DEX2OAT_TARGET_INSTRUCTION_SET_FEATURES := div
+ifneq (,$(filter $(DEX2OAT_TARGET_CPU_VARIANT),cortex-a7 cortex-a15 krait denver))
+  DEX2OAT_TARGET_INSTRUCTION_SET_FEATURES := div
+endif
+
+ifdef TARGET_2ND_ARCH
+$(TARGET_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_ARCH := $(TARGET_2ND_ARCH)
+$(TARGET_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_CPU_VARIANT := $(TARGET_2ND_CPU_VARIANT)
+$(TARGET_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_INSTRUCTION_SET_FEATURES := default
+ifneq (,$(filter $($(TARGET_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_CPU_VARIANT),cortex-a7 cortex-a15 krait denver))
+  $(TARGET_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_INSTRUCTION_SET_FEATURES := div
+endif
 endif
 
 # define clang/llvm tools and global flags

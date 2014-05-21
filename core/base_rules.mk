@@ -84,11 +84,10 @@ endif
 # Add implicit tags.
 #
 # If the local directory or one of its parents contains a MODULE_LICENSE_GPL
-# file, tag the module as "gnu".  Search for "*_GPL*" and "*_MPL*" so that we can also
-# find files like MODULE_LICENSE_GPL_AND_AFL but exclude files like
-# MODULE_LICENSE_LGPL.
+# file, tag the module as "gnu".  Search for "*_GPL*", "*_LGPL*" and "*_MPL*"
+# so that we can also find files like MODULE_LICENSE_GPL_AND_AFL
 #
-gpl_license_file := $(call find-parent-file,$(LOCAL_PATH),MODULE_LICENSE*_GPL* MODULE_LICENSE*_MPL*)
+gpl_license_file := $(call find-parent-file,$(LOCAL_PATH),MODULE_LICENSE*_GPL* MODULE_LICENSE*_MPL* MODULE_LICENSE*_LGPL*)
 ifneq ($(gpl_license_file),)
   my_module_tags += gnu
   ALL_GPL_MODULE_LICENSE_FILES := $(sort $(ALL_GPL_MODULE_LICENSE_FILES) $(gpl_license_file))
@@ -99,16 +98,10 @@ ifneq ($(words $(LOCAL_MODULE_CLASS)),1)
   $(error $(LOCAL_PATH): LOCAL_MODULE_CLASS must contain exactly one word, not "$(LOCAL_MODULE_CLASS)")
 endif
 
-ifndef LOCAL_IS_HOST_MODULE
-my_32_64_bit_suffix := $(if $($(LOCAL_2ND_ARCH_VAR_PREFIX)TARGET_IS_64_BIT),64,32)
-endif
+my_32_64_bit_suffix := $(if $($(LOCAL_2ND_ARCH_VAR_PREFIX)$(my_prefix)IS_64_BIT),64,32)
 
 ifneq (true,$(LOCAL_UNINSTALLABLE_MODULE))
-ifndef LOCAL_IS_HOST_MODULE
 my_multilib_module_path := $(strip $(LOCAL_MODULE_PATH_$(my_32_64_bit_suffix)))
-else
-my_multilib_module_path :=
-endif
 ifdef my_multilib_module_path
 my_module_path := $(my_multilib_module_path)
 else
@@ -149,7 +142,7 @@ endif
 my_register_name := $(LOCAL_MODULE)
 ifdef LOCAL_2ND_ARCH_VAR_PREFIX
 ifndef LOCAL_NO_2ND_ARCH_MODULE_SUFFIX
-my_register_name := $(LOCAL_MODULE)$(TARGET_2ND_ARCH_MODULE_SUFFIX)
+my_register_name := $(LOCAL_MODULE)$($(my_prefix)2ND_ARCH_MODULE_SUFFIX)
 endif
 endif
 # Make sure that this IS_HOST/CLASS/MODULE combination is unique.
@@ -517,6 +510,8 @@ $(LOCAL_INTERMEDIATE_TARGETS) : PRIVATE_HOST:= $(my_host)
 
 $(LOCAL_INTERMEDIATE_TARGETS) : PRIVATE_INTERMEDIATES_DIR:= $(intermediates)
 
+$(LOCAL_INTERMEDIATE_TARGETS) : PRIVATE_2ND_ARCH_VAR_PREFIX := $(LOCAL_2ND_ARCH_VAR_PREFIX)
+
 # Tell the module and all of its sub-modules who it is.
 $(LOCAL_INTERMEDIATE_TARGETS) : PRIVATE_MODULE:= $(my_register_name)
 
@@ -599,6 +594,12 @@ ALL_MODULES.$(my_register_name).BUILT := \
     $(ALL_MODULES.$(my_register_name).BUILT) $(LOCAL_BUILT_MODULE)
 ALL_MODULES.$(my_register_name).INSTALLED := \
     $(strip $(ALL_MODULES.$(my_register_name).INSTALLED) $(LOCAL_INSTALLED_MODULE))
+ifdef LOCAL_PICKUP_FILES
+# Files or directories ready to pick up by the build system
+# when $(LOCAL_BUILT_MODULE) is done.
+ALL_MODULES.$(my_register_name).PICKUP_FILES := \
+    $(ALL_MODULES.$(my_register_name).PICKUP_FILES) $(LOCAL_PICKUP_FILES)
+endif
 ALL_MODULES.$(my_register_name).REQUIRED := \
     $(strip $(ALL_MODULES.$(my_register_name).REQUIRED) $(LOCAL_REQUIRED_MODULES) \
       $(LOCAL_REQUIRED_MODULES_$(TARGET_$(LOCAL_2ND_ARCH_VAR_PREFIX)ARCH)))

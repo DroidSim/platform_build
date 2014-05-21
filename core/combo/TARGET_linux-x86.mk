@@ -106,7 +106,6 @@ android_config_h := $(call select-android-config-h,target_linux-x86)
 
 $(combo_2nd_arch_prefix)TARGET_GLOBAL_CFLAGS += \
 			-O2 \
-			-Ulinux \
 			-Wa,--noexecstack \
 			-Werror=format-security \
 			-D_FORTIFY_SOURCE=2 \
@@ -123,6 +122,8 @@ $(combo_2nd_arch_prefix)TARGET_GLOBAL_CFLAGS += \
 			-fstack-protector \
 			-m32 \
 			-msse2 \
+			-no-canonical-prefixes \
+			-fno-canonical-system-headers \
 			-include $(android_config_h) \
 			-I $(dir $(android_config_h))
 
@@ -195,7 +196,8 @@ $(hide) $(PRIVATE_CXX) \
 	-o $@ \
 	$(PRIVATE_LDFLAGS) \
 	$(PRIVATE_TARGET_LIBGCC) \
-	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_SO_O))
+	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_SO_O)) \
+	$(PRIVATE_LDLIBS)
 endef
 
 define $(combo_2nd_arch_prefix)transform-o-to-executable-inner
@@ -220,7 +222,8 @@ $(hide) $(PRIVATE_CXX) \
 	-o $@ \
 	$(PRIVATE_LDFLAGS) \
 	$(PRIVATE_TARGET_LIBGCC) \
-	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_O))
+	$(if $(filter true,$(PRIVATE_NO_CRT)),,$(PRIVATE_TARGET_CRTEND_O)) \
+	$(PRIVATE_LDLIBS)
 endef
 
 define $(combo_2nd_arch_prefix)transform-o-to-static-executable-inner
