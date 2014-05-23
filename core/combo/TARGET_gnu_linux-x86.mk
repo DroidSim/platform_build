@@ -166,9 +166,7 @@ $(combo_2nd_arch_prefix)TARGET_GLOBAL_LDFLAGS += -m32
 
 $(combo_2nd_arch_prefix)TARGET_GLOBAL_LDFLAGS += -Wl,-z,noexecstack
 $(combo_2nd_arch_prefix)TARGET_GLOBAL_LDFLAGS += -Wl,-z,relro -Wl,-z,now
-ifneq ($(TARGET_OS),gnu_linux)
 $(combo_2nd_arch_prefix)TARGET_GLOBAL_LDFLAGS += -Wl,--warn-shared-textrel
-endif
 $(combo_2nd_arch_prefix)TARGET_GLOBAL_LDFLAGS += -Wl,--fatal-warnings
 $(combo_2nd_arch_prefix)TARGET_GLOBAL_LDFLAGS += -Wl,--gc-sections
 
