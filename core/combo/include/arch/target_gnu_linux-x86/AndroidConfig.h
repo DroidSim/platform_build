@@ -292,7 +292,7 @@
 /*
  * Define if the open_memstream() function exists on the system.
  */
-/* #define HAVE_OPEN_MEMSTREAM 1 */
+#define HAVE_OPEN_MEMSTREAM 0
 
 /*
  * Define if the BSD funopen() function exists on the system.
